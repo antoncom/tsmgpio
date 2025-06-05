@@ -4,9 +4,9 @@ local log = require "applogic.util.log"
 
 local rule = {}
 local rule_setting = {
-	title = {
-		input = "Правило для GPIO: IO0..IO7. Конфиг:/etc/config/tsmgpio",
-	},
+    title = {
+        input = "Правило для GPIO: IO0..IO7. Конфиг:/etc/config/tsmgpio",
+    },
 
     cfg_status = {
         note = "Конфигурация. Линии: задействованы/незадействованы",
@@ -24,7 +24,7 @@ local rule_setting = {
         modifier = {
             ["1_bash"] = [[ jsonfilter  -e $.value ]],
         }
-    },    			
+    },              
 ----------------------------IO0--------------------------------------
     io0_current_state = {
         note = "Текущее состояние IO0.",
@@ -341,9 +341,9 @@ local rule_setting = {
         }
     },
 ----------------------------IO5--------------------------------------
-	io5_current_state = {
-		note = "Текущее состояние IO5.",
-		input = "",
+    io5_current_state = {
+        note = "Текущее состояние IO5.",
+        input = "",
         source = {
             type = "ubus",
             object = "tsmgpio.driver",
@@ -355,10 +355,10 @@ local rule_setting = {
             },
         },
         modifier = {
-        	["1_skip"] = [[ return ($cfg_status == "disable") ]],
-			["2_bash"] = [[ jsonfilter -e '$.response.value' ]],
-		}
-	},
+            ["1_skip"] = [[ return ($cfg_status == "disable") ]],
+            ["2_bash"] = [[ jsonfilter -e '$.response.value' ]],
+        }
+    },
 
     io5_cfg_action_command = {
         note = "Конфигурация. Реакция на событие: Запуск Bash-команды.",
@@ -530,9 +530,9 @@ local rule_setting = {
         }
     },  
 ---------------------------------------------------------------------
-	cfg_hw_info = {
-		note = "Информация об аппапатной реализации GPIO.",
-		input = "",
+    cfg_hw_info = {
+        note = "Информация об аппапатной реализации GPIO.",
+        input = "",
         source = {
             type = "ubus",
             object = "uci",
@@ -544,9 +544,9 @@ local rule_setting = {
             },
         },
         modifier = {
-			["1_bash"] = [[ jsonfilter  -e $.value ]]
-		}
-	},
+            ["1_bash"] = [[ jsonfilter  -e $.value ]]
+        }
+    },
 
     ---------- PUT EVENT TO JOURNAL -------------
 
@@ -580,27 +580,35 @@ local rule_setting = {
 }
 
 function rule:make()
-	debug_mode.level = "ERROR"
-	rule.debug_mode = debug_mode
-	local ONLY = rule.debug_mode.level
+    debug_mode.level = "ERROR"
+    rule.debug_mode = debug_mode
+    local ONLY = rule.debug_mode.level
 
-	-- These variables are included into debug overview (run "applogic debug" to get all rules overview)
-	-- Green, Yellow and Red are measure of importance for Application logic
-	-- Green is for timers and some passive variables,
-	-- Yellow is for that vars which switches logic - affects to normal application behavior
-	-- Red is for some extraordinal application ehavior, like watchdog, etc.
-	local overview = {
-		["io5_event_counter"] = { ["yellow"] = [[ return tonumber($io5_event_counter) and true ]] },
+    -- Пропускаем выполнения правила, если нет объекта на шине UBUS
+    local checkubus = require("applogic.util.checkubus")
+    local io0, errmsg = checkubus(self.conn, "tsmgpio.driver", "IO0")
+    if (not io0) then 
+        if rule.debug_mode.enabled then print("------ 09_rule SKIPPED as " .. errmsg .." -----") end
+        return 
+    end
+
+    -- These variables are included into debug overview (run "applogic debug" to get all rules overview)
+    -- Green, Yellow and Red are measure of importance for Application logic
+    -- Green is for timers and some passive variables,
+    -- Yellow is for that vars which switches logic - affects to normal application behavior
+    -- Red is for some extraordinal application ehavior, like watchdog, etc.
+    local overview = {
+        ["io5_event_counter"] = { ["yellow"] = [[ return tonumber($io5_event_counter) and true ]] },
         ["io6_event_counter"] = { ["yellow"] = [[ return tonumber($io6_event_counter) and true ]] },
         ["io7_event_counter"] = { ["yellow"] = [[ return tonumber($io7_event_counter) and true ]] },
-	}
+    }
 
-	self:load("title"):modify():debug()
-	self:load("cfg_status"):modify():debug()
+    self:load("title"):modify():debug()
+    self:load("cfg_status"):modify():debug()
 ----------------------------IO0--------------------------------------              
     self:load("io0_current_state"):modify():debug()
     self:load("io0_cfg_action_command"):modify():debug()
-	self:load("io0_event_counter"):modify():debug()
+    self:load("io0_event_counter"):modify():debug()
     self:load("io0_action_command_run"):modify():debug()
 ----------------------------IO1--------------------------------------              
     self:load("io1_current_state"):modify():debug()
@@ -638,22 +646,22 @@ function rule:make()
     self:load("io7_event_counter"):modify():debug(overview)
     self:load("io7_action_command_run"):modify():debug()
 --------------------------------------------------------------------           
-	self:load("cfg_hw_info"):modify():debug()
+    self:load("cfg_hw_info"):modify():debug()
     self:load("journal"):modify():debug()
 
 end
 
 ---[[ Initializing. Don't edit the code below ]]---
 local metatable = {
-	__call = function(table, parent)
-		local t = rule_init(table, rule_setting, parent)
-		if not t.is_busy then
-			t.is_busy = true
-			t:make()
-			t.is_busy = false
-		end
-		return t
-	end
+    __call = function(table, parent)
+        local t = rule_init(table, rule_setting, parent)
+        if not t.is_busy then
+            t.is_busy = true
+            t:make()
+            t.is_busy = false
+        end
+        return t
+    end
 }
 setmetatable(rule, metatable)
 return rule
